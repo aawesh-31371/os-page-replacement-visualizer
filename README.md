@@ -195,6 +195,3 @@ Potential improvements:
 
 Educational project for OS Lab coursework.
 
----
-
-**Last Updated:** December 2025
