@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Page Replacement Algorithm Visualizer</title>
+
+
+
+    <!-- Bootstrap CSS -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        body {
+            background: #0f172a;
+            color: #e5e7eb;
+        }
+        .card {
+            background: #111827;
+            border-radius: 1rem;
+            border: 1px solid #1f2937;
+        }
+        .form-control, .form-select {
+            background: #020617;
+            color: #e5e7eb;
+            border-color: #1f2937;
+        }
+        .form-control:focus {
+            background: #020617;
+            color: #e5e7eb;
+        }
+        .nav-tabs .nav-link {
+            color: #9ca3af;
+        }
+        .nav-tabs .nav-link.active {
+            background: #0b1120;
+            color: #facc15;
+            border-color: #1f2937;
+        }
+        .table-dark {
+            --bs-table-bg: #020617;
+            --bs-table-striped-bg: #020617;
+            --bs-table-striped-color: #e5e7eb;
+        }
+        .fault-yes {
+            background-color: rgba(220, 38, 38, 0.35);
+        }
+        .fault-no {
+            background-color: rgba(22, 163, 74, 0.25);
+        }
+        .badge-algo {
+            font-size: 0.8rem;
+            letter-spacing: .06em;
+        }
+    </style>
+</head>
+<body>
+
+
+<div class="container py-4">
+    <h1 class="text-center mb-3 text-warning">
+        Page Replacement Algorithm Visualizer
+    </h1>
+    <p class="text-center mb-4 text-secondary">
+        Compare FIFO, LRU and Optimal algorithms with step-by-step memory visualization.
+    </p>
+
+    <!-- Input Card -->
+    <div class="card mb-4 shadow-lg">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Simulation Settings</h5>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Number of Frames</label>
+                    <input type="number" id="framesInput" class="form-control" min="1" max="10" value="3">
+                </div>
+                <div class="col-md-9">
+                    <label class="form-label">
+                        Page Reference String
+                        <span class="text-secondary">(space separated)</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="pagesInput"
+                        class="form-control"
+                        value="7 0 1 2 0 3 0 4 2 3 0 3 2"
+                    >
+                </div>
+            </div>
+            <div class="d-flex justify-content-end mt-3">
+                <button id="runBtn" class="btn btn-warning px-4">
+                    Run Simulation
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs for Algorithms -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#fifo-pane">
+                FIFO <span class="badge bg-secondary ms-1 badge-algo">First In First Out</span>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#lru-pane">
+                LRU <span class="badge bg-secondary ms-1 badge-algo">Least Recently Used</span>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#opt-pane">
+                OPTIMAL <span class="badge bg-secondary ms-1 badge-algo">MIN</span>
+            </button>
+        </li>
+    </ul>
+
+    <!-- Algorithm Output Tabs -->
+    <div class="tab-content mb-4">
+        <div class="tab-pane fade show active" id="fifo-pane">
+            <div class="card"><div class="card-body">
+                <h5 class="card-title mb-2">FIFO Simulation
+                    <span id="fifoFaults" class="badge bg-danger ms-2"></span>
+                </h5>
+                <table class="table table-dark" id="fifoTable"></table>
+            </div></div>
+        </div>
+
+        <div class="tab-pane fade" id="lru-pane">
+            <div class="card"><div class="card-body">
+                <h5 class="card-title mb-2">LRU Simulation
+                    <span id="lruFaults" class="badge bg-danger ms-2"></span>
+                </h5>
+                <table class="table table-dark" id="lruTable"></table>
+            </div></div>
+        </div>
+
+        <div class="tab-pane fade" id="opt-pane">
+            <div class="card"><div class="card-body">
+                <h5 class="card-title mb-2">Optimal Simulation
+                    <span id="optFaults" class="badge bg-danger ms-2"></span>
+                </h5>
+                <table class="table table-dark" id="optTable"></table>
+            </div></div>
+        </div>
+    </div>
+
+    <!-- Chart Output -->
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Page Fault Comparison</h5>
+            <canvas id="faultChart"></canvas>
+        </div>
+    </div>
+
+</div>
+
+
+
+<script>
+function parsePages(input) {
+    return input.trim().split(/\s+/).map(Number).filter(v => !isNaN(v));
+}
+</script>
+
+
+<script>
+function simulateFIFO(pages, framesCount) {
+    const frames = new Array(framesCount).fill(null);
+    let ptr = 0, faults = 0;
+    const steps = [];
+
+    pages.forEach((page, i) => {
+        const hit = frames.includes(page);
+
+        if (!hit) {
+            faults++;
+            if (frames.includes(null)) {
+                frames[frames.indexOf(null)] = page;
+            } else {
+                frames[ptr] = page;
+                ptr = (ptr + 1) % framesCount;
+            }
+        }
+
+        steps.push({ step: i+1, page, frames: [...frames], fault: !hit });
+    });
+
+    return { steps, faults };
+}
+</script>
+
+<script>
+function simulateLRU(pages, framesCount) {
+    const frames = new Array(framesCount).fill(null);
+    const lastUsed = new Array(framesCount).fill(-1);
+    let faults = 0;
+    const steps = [];
+
+    pages.forEach((page, idx) => {
+        const hitIdx = frames.indexOf(page);
+        const hit = hitIdx !== -1;
+
+        if (hit) {
+            lastUsed[hitIdx] = idx;
+        } else {
+            faults++;
+            const empty = frames.indexOf(null);
+
+            if (empty !== -1) {
+                frames[empty] = page;
+                lastUsed[empty] = idx;
+            } else {
+                let lruIndex = 0;
+                for (let i = 1; i < framesCount; i++)
+                    if (lastUsed[i] < lastUsed[lruIndex]) lruIndex = i;
+
+                frames[lruIndex] = page;
+                lastUsed[lruIndex] = idx;
+            }
+        }
+
+        steps.push({ step: idx+1, page, frames: [...frames], fault: !hit });
+    });
+
+    return { steps, faults };
+}
+</script>
+
+<script>
+function simulateOptimal(pages, framesCount) {
+    const frames = new Array(framesCount).fill(null);
+    let faults = 0;
+    const steps = [];
+
+    for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        const hit = frames.includes(page);
+
+        if (!hit) {
+            faults++;
+            const empty = frames.indexOf(null);
+
+            if (empty !== -1) {
+                frames[empty] = page;
+            } else {
+                let replace = 0, farthest = 0;
+
+                for (let j = 0; j < framesCount; j++) {
+                    let next = pages.indexOf(frames[j], i + 1);
+                    if (next === -1) next = 99999;
+                    if (next > farthest) {
+                        farthest = next;
+                        replace = j;
+                    }
+                }
+
+                frames[replace] = page;
+            }
+        }
+
+        steps.push({ step: i+1, page, frames: [...frames], fault: !hit });
+    }
+
+    return { steps, faults };
+}
+
+function renderTable(tableElement, result, framesCount) {
+    let html = `
+        <thead><tr>
+        <th>Step</th><th>Page</th>
+    `;
+
+    for (let i = 0; i < framesCount; i++)
+        html += `<th>Frame ${i + 1}</th>`;
+
+    html += `<th>Fault</th></tr></thead><tbody>`;
+
+    result.steps.forEach(row => {
+        html += `
+            <tr class="${row.fault ? 'fault-yes' : 'fault-no'}">
+                <td>${row.step}</td>
+                <td>${row.page}</td>
+        `;
+        row.frames.forEach(f => {
+            html += `<td>${f === null ? '-' : f}</td>`;
+        });
+        html += `<td>${row.fault ? 'Yes' : 'No'}</td></tr>`;
+    });
+
+    html += "</tbody>";
+    tableElement.innerHTML = html;
+}
+</script>
+
+<script>
+let faultChart = null;
+
+function updateChart(fifo, lru, opt) {
+    const ctx = document.getElementById("faultChart");
+
+    if (faultChart) faultChart.destroy();
+
+    faultChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: ["FIFO", "LRU", "Optimal"],
+            datasets: [{
+                label: "Page Faults",
+                data: [fifo, lru, opt]
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+}
+
+document.getElementById("runBtn").addEventListener("click", () => {
+    const framesCount = parseInt(framesInput.value);
+    const pages = parsePages(pagesInput.value);
+
+    const fifo = simulateFIFO(pages, framesCount);
+    const lru = simulateLRU(pages, framesCount);
+    const opt = simulateOptimal(pages, framesCount);
+
+    renderTable(fifoTable, fifo, framesCount);
+    renderTable(lruTable, lru, framesCount);
+    renderTable(optTable, opt, framesCount);
+
+    fifoFaults.textContent = `Page Faults: ${fifo.faults}`;
+    lruFaults.textContent  = `Page Faults: ${lru.faults}`;
+    optFaults.textContent  = `Page Faults: ${opt.faults}`;
+
+    updateChart(fifo.faults, lru.faults, opt.faults);
+});
+
+window.onload = () => document.getElementById("runBtn").click();
+</script>
+
+
+</body>
+</html>
