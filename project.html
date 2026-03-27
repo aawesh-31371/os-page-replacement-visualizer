@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Page Replacement Algorithm Visualizer — High Contrast</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* --- Base / Layout --- */
+    :root{
+      --bg: #0b1220;
+      --card-bg: #071124;
+      --input-bg: #071428;
+      --muted: #e6eef8;      /* brighter helper text */
+      --label: #f1f5f9;      /* label color */
+      --accent: #facc15;
+    }
+
+    html,body { height:100%; }
+    body{
+      margin:0;
+      background: linear-gradient(180deg, #071026 0%, #0b1220 100%);
+      color: #e6eef8;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    /* card separation (subtle glow so text stands out) */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid rgba(255,255,255,0.04);
+      box-shadow: 0 6px 24px rgba(2,6,23,0.6);
+      border-radius: 12px;
+    }
+
+    /* labels & helper text: HIGH CONTRAST */
+    .form-label {
+      color: var(--label) !important;
+      font-weight: 600;
+      font-size: 1.02rem;
+    }
+    .small-muted, #pagesHelp, #framesHelp, #errorMsg {
+      color: var(--muted) !important;
+      font-size: 0.98rem;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    /* inputs: slightly lighter bg and visible placeholder */
+    .form-control {
+      background: var(--input-bg);
+      color: #ffffff;
+      border: 1px solid rgba(255,255,255,0.06);
+      font-size: 1.04rem;
+      padding: .6rem .75rem;
+    }
+    .form-control::placeholder { color: rgba(255,255,255,0.45); opacity:1; }
+    .form-control:focus {
+      background: var(--input-bg);
+      border-color: rgba(250,204,21,0.45);
+      box-shadow: 0 0 0 0.15rem rgba(250,204,21,0.08);
+    }
+
+    /* tab labels */
+    .nav-tabs .nav-link { color: #cbd5e1; font-weight:600; }
+    .nav-tabs .nav-link.active { color: var(--accent); background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.04); }
+
+    /* table */
+    .table-dark { --bs-table-bg: #071428; --bs-table-striped-bg: #081627; color: #e6eef8; }
+    .table th, .table td { vertical-align: middle; color: #e6eef8; }
+
+    /* faults & highlight */
+    .fault-yes { background-color: rgba(220,38,38,0.20); }
+    .fault-no  { background-color: rgba(22,163,74,0.08); }
+    .frame-highlight { outline: 2px solid rgba(250,204,21,0.35); border-radius: 4px; }
+
+    /* header style */
+    header { text-align:center; margin-bottom:0.75rem; }
+    header h1 { color: var(--accent); font-size: 2.8rem; margin:0; font-weight:800; text-shadow: 0 1px 0 rgba(0,0,0,0.6); }
+    header p { color: #9fb0c8; margin:4px 0 18px; font-size:1rem; }
+
+    /* input group buttons */
+    .input-group .btn { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.04); color: #e6eef8; }
+
+    /* responsive tweak */
+    @media (max-width:600px){
+      header h1 { font-size: 1.8rem; }
+      .form-label { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <header>
+      <h1>Page Replacement Algorithm Visualizer</h1>
+      <p>Compare FIFO, LRU and Optimal algorithms with step-by-step memory visualization.</p>
+    </header>
+
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5 class="card-title mb-3" style="color:var(--label)">Simulation Settings</h5>
+
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label for="framesInput" class="form-label">Number of Frames</label>
+            <input id="framesInput" class="form-control" type="number" min="1" max="20" value="3" />
+            <div id="framesHelp" class="small-muted">Enter a value from 1 to 20.</div>
+          </div>
+
+          <div class="col-md-9">
+            <label for="pagesInput" class="form-label">Page Reference String <span style="color:#9fb0c8; font-weight:600;">(space or comma separated)</span></label>
+            <div class="input-group">
+              <input id="pagesInput" class="form-control" type="text" value="7 0 1 2 0 3 0 4 2 3 0 3 2" />
+              <button id="copyRef" class="btn" type="button">Copy</button>
+              <button id="clearRef" class="btn" type="button">Clear</button>
+            </div>
+            <div id="pagesHelp" class="small-muted">Non-numeric tokens are ignored. If you paste digits without separators (e.g. 70123) each digit will be used.</div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end mt-3">
+          <button id="runBtn" class="btn btn-warning px-4">Run Simulation</button>
+        </div>
+
+        <div id="errorMsg" class="mt-2" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#fifo-pane" type="button">FIFO <span class="badge badge-algo ms-1">First In First Out</span></button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#lru-pane" type="button">LRU <span class="badge badge-algo ms-1">Least Recently Used</span></button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#opt-pane" type="button">OPTIMAL <span class="badge badge-algo ms-1">MIN</span></button></li>
+    </ul>
+
+    <div class="tab-content mb-4">
+      <div class="tab-pane fade show active" id="fifo-pane">
+        <div class="card"><div class="card-body">
+          <h5 class="card-title mb-2">FIFO Simulation <span id="fifoFaults" class="badge bg-danger ms-2"></span></h5>
+          <div class="table-responsive"><table class="table table-dark" id="fifoTable"></table></div>
+        </div></div>
+      </div>
+
+      <div class="tab-pane fade" id="lru-pane">
+        <div class="card"><div class="card-body">
+          <h5 class="card-title mb-2">LRU Simulation <span id="lruFaults" class="badge bg-danger ms-2"></span></h5>
+          <div class="table-responsive"><table class="table table-dark" id="lruTable"></table></div>
+        </div></div>
+      </div>
+
+      <div class="tab-pane fade" id="opt-pane">
+        <div class="card"><div class="card-body">
+          <h5 class="card-title mb-2">Optimal Simulation <span id="optFaults" class="badge bg-danger ms-2"></span></h5>
+          <div class="table-responsive"><table class="table table-dark" id="optTable"></table></div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Page Fault Comparison</h5>
+        <canvas id="faultChart" aria-label="bar chart of page faults" role="img"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // DOM refs
+    const framesInput = document.getElementById('framesInput');
+    const pagesInput  = document.getElementById('pagesInput');
+    const runBtn      = document.getElementById('runBtn');
+    const copyRefBtn  = document.getElementById('copyRef');
+    const clearRefBtn = document.getElementById('clearRef');
+    const fifoTable   = document.getElementById('fifoTable');
+    const lruTable    = document.getElementById('lruTable');
+    const optTable    = document.getElementById('optTable');
+    const fifoFaults  = document.getElementById('fifoFaults');
+    const lruFaults   = document.getElementById('lruFaults');
+    const optFaults   = document.getElementById('optFaults');
+    const errorMsg    = document.getElementById('errorMsg');
+
+    // parser (spaces, commas, or compact digits)
+    function parsePages(input) {
+      if (!input || typeof input !== 'string') return [];
+      const sepRegex = /[,;\s]+/;
+      if (sepRegex.test(input)) {
+        return input.split(sepRegex).map(s => Number(s.trim())).filter(n => Number.isFinite(n));
+      }
+      if (/^\d+$/.test(input.trim())) return input.trim().split('').map(d => Number(d));
+      return input.split(/\D+/).map(s => Number(s)).filter(n => Number.isFinite(n));
+    }
+
+    function showError(msg) { errorMsg.innerHTML = msg ? `<div class="text-danger small">${msg}</div>` : ''; }
+
+    // simulators (FIFO, LRU, Optimal)
+    function simulateFIFO(pages, framesCount) {
+      const frames = new Array(framesCount).fill(null);
+      let ptr=0, faults=0; const steps=[];
+      pages.forEach((page,i)=> {
+        const hit = frames.includes(page);
+        if (!hit) {
+          faults++;
+          if (frames.includes(null)) frames[frames.indexOf(null)] = page;
+          else { frames[ptr]=page; ptr=(ptr+1)%framesCount; }
+        }
+        steps.push({ step:i+1, page, frames:[...frames], fault:!hit, replacedIndex: hit ? -1 : frames.indexOf(page) });
+      });
+      return { steps, faults };
+    }
+
+    function simulateLRU(pages, framesCount) {
+      const frames = new Array(framesCount).fill(null);
+      const lastUsed = new Array(framesCount).fill(-1);
+      let faults=0; const steps=[];
+      pages.forEach((page, idx) => {
+        const hitIdx = frames.indexOf(page); const hit = hitIdx !== -1;
+        if (hit) lastUsed[hitIdx]=idx;
+        else {
+          faults++;
+          const empty = frames.indexOf(null);
+          if (empty !== -1) { frames[empty]=page; lastUsed[empty]=idx; }
+          else {
+            let lru=0;
+            for (let i=1;i<framesCount;i++) if (lastUsed[i]<lastUsed[lru]) lru=i;
+            frames[lru]=page; lastUsed[lru]=idx;
+          }
+        }
+        const replacedIndex = hit ? -1 : frames.indexOf(page);
+        steps.push({ step:idx+1, page, frames:[...frames], fault:!hit, replacedIndex });
+      });
+      return { steps, faults };
+    }
+
+    function simulateOptimal(pages, framesCount) {
+      const frames = new Array(framesCount).fill(null);
+      let faults=0; const steps=[];
+      for (let i=0;i<pages.length;i++) {
+        const page = pages[i]; const hit = frames.includes(page);
+        if (!hit) {
+          faults++;
+          const empty = frames.indexOf(null);
+          if (empty !== -1) { frames[empty]=page; steps.push({ step:i+1, page, frames:[...frames], fault:true, replacedIndex: empty }); continue; }
+          let replace=0, farthest=-1;
+          for (let j=0;j<framesCount;j++){
+            const next = pages.indexOf(frames[j], i+1);
+            const dist = next === -1 ? Infinity : next;
+            if (dist > farthest) { farthest = dist; replace = j; }
+          }
+          frames[replace] = page;
+          steps.push({ step:i+1, page, frames:[...frames], fault:true, replacedIndex: replace });
+        } else {
+          steps.push({ step:i+1, page, frames:[...frames], fault:false, replacedIndex: -1 });
+        }
+      }
+      return { steps, faults };
+    }
+
+    // render table
+    function renderTable(tableElement, result, framesCount) {
+      let html = `<thead><tr><th>Step</th><th>Page</th>`;
+      for (let i=0;i<framesCount;i++) html += `<th>Frame ${i+1}</th>`;
+      html += `<th>Fault</th></tr></thead><tbody>`;
+      result.steps.forEach(row => {
+        html += `<tr class="${row.fault ? 'fault-yes' : 'fault-no'}">`;
+        html += `<td>${row.step}</td><td>${row.page}</td>`;
+        row.frames.forEach((f, idx) => {
+          const cls = idx === row.replacedIndex ? 'frame-highlight' : '';
+          html += `<td class="${cls}">${f===null?'-':f}</td>`;
+        });
+        html += `<td>${row.fault ? 'Yes' : 'No'}</td></tr>`;
+      });
+      html += `</tbody>`;
+      tableElement.innerHTML = html;
+    }
+
+    // chart
+    let faultChart = null;
+    function updateChart(fifo, lru, opt) {
+      const ctx = document.getElementById('faultChart');
+      if (faultChart) faultChart.destroy();
+      faultChart = new Chart(ctx, {
+        type:'bar',
+        data: {
+          labels:['FIFO','LRU','Optimal'],
+          datasets:[{ label:'Page Faults', data:[fifo,lru,opt], backgroundColor:['rgba(250,204,21,0.95)','rgba(59,130,246,0.9)','rgba(34,197,94,0.9)'] }]
+        },
+        options:{ responsive:true, plugins:{ legend:{display:false} } }
+      });
+    }
+
+    // UI wiring
+    copyRefBtn.addEventListener('click', () => {
+      navigator.clipboard?.writeText(pagesInput.value||'').then(()=>{ copyRefBtn.textContent='Copied'; setTimeout(()=>copyRefBtn.textContent='Copy',800); }).catch(()=>{});
+    });
+    clearRefBtn.addEventListener('click', ()=> pagesInput.value='');
+
+    runBtn.addEventListener('click', () => {
+      showError('');
+      const framesCount = parseInt(framesInput.value,10);
+      if (!Number.isFinite(framesCount) || framesCount < 1) { showError('Enter valid frames (>=1)'); return; }
+      const pages = parsePages(pagesInput.value);
+      if (!pages.length) { showError('Enter at least one page (digits or separated values).'); return; }
+
+      // run
+      const fifo = simulateFIFO(pages, framesCount);
+      const lru  = simulateLRU(pages, framesCount);
+      const opt  = simulateOptimal(pages, framesCount);
+
+      renderTable(fifoTable, fifo, framesCount);
+      renderTable(lruTable, lru, framesCount);
+      renderTable(optTable, opt, framesCount);
+
+      fifoFaults.textContent = `Page Faults: ${fifo.faults}`;
+      lruFaults.textContent  = `Page Faults: ${lru.faults}`;
+      optFaults.textContent  = `Page Faults: ${opt.faults}`;
+
+      updateChart(fifo.faults, lru.faults, opt.faults);
+    });
+
+    // helper
+    function parsePages(input) {
+      if (!input || typeof input !== 'string') return [];
+      const sepRegex = /[,;\s]+/;
+      if (sepRegex.test(input)) return input.split(sepRegex).map(s => Number(s.trim())).filter(n => Number.isFinite(n));
+      if (/^\d+$/.test(input.trim())) return input.trim().split('').map(d=>Number(d));
+      return input.split(/\D+/).map(s=>Number(s)).filter(n=>Number.isFinite(n));
+    }
+    function showError(msg) { errorMsg.innerHTML = msg ? `<div class="text-danger small">${msg}</div>` : ''; }
+
+    // run initial
+    window.addEventListener('load', ()=> runBtn.click());
+  </script>
+</body>
+</html>
