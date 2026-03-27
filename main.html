@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Page Replacement – OS Project</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap CSS -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <style>
+        :root {
+            --bg-main: #020617;
+            --bg-card: rgba(15, 23, 42, 0.9);
+            --border-subtle: #1f2937;
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
+            --accent: #facc15;
+        }
+
+        * {
+            font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at top left, #1d4ed8 0, transparent 55%),
+                radial-gradient(circle at bottom right, #22c55e 0, transparent 55%),
+                var(--bg-main);
+            min-height: 100vh;
+            color: var(--text-main);
+        }
+
+        .glass-card {
+            background: var(--bg-card);
+            border-radius: 1.25rem;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            box-shadow:
+                0 18px 45px rgba(0, 0, 0, 0.65),
+                0 0 0 1px rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-3px);
+            box-shadow:
+                0 24px 65px rgba(0, 0, 0, 0.9),
+                0 0 0 1px rgba(148, 163, 184, 0.5);
+            border-color: rgba(250, 204, 21, 0.6);
+        }
+
+        .chip {
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-muted);
+            background: rgba(15, 23, 42, 0.7);
+        }
+
+        .chip-accent {
+            border-color: rgba(250, 204, 21, 0.75);
+            color: var(--accent);
+            background: rgba(250, 204, 21, 0.1);
+        }
+
+        h1 {
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            font-size: 1.7rem;
+        }
+
+        .subtitle {
+            max-width: 650px;
+            margin: 0 auto;
+            font-size: 0.95rem;
+        }
+
+        .btn-main {
+            border-radius: 999px;
+            font-weight: 600;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            font-size: 0.78rem;
+            padding: 0.7rem 1.9rem;
+            border: none;
+            background: linear-gradient(135deg, #f97316, #facc15);
+            color: #111827;
+            box-shadow: 0 13px 35px rgba(250, 204, 21, 0.4);
+            transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-main:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.03);
+            box-shadow: 0 18px 45px rgba(250, 204, 21, 0.55);
+        }
+
+        .btn-outline-soft {
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            padding: 0.55rem 1.5rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--text-main);
+            text-decoration: none;
+        }
+        .btn-outline-soft:hover {
+            border-color: rgba(250, 204, 21, 0.7);
+            color: var(--accent);
+        }
+
+        /* navbar */
+        .nav-main {
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            background: rgba(15, 23, 42, 0.85);
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            padding-inline: 1.25rem;
+        }
+        .nav-main a {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .nav-main a:hover {
+            color: var(--accent);
+        }
+        .nav-main .brand {
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: 0.18em;
+        }
+        .nav-main .active {
+            color: var(--accent);
+        }
+
+        footer {
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+<div class="container py-4 py-md-5">
+
+    <!-- NAVBAR -->
+    <div class="d-flex justify-content-center mb-4">
+        <div class="nav-main d-flex align-items-center justify-content-between w-100" style="max-width:900px;">
+            <span class="brand small">OS · PAGE REPLACEMENT</span>
+            <div class="d-flex gap-3">
+                <a href="index.html" class="active text-decoration-none">Home</a>
+                <a href="visualizer.html" class="text-decoration-none">Visualizer</a>
+                <a href="theory.html" class="text-decoration-none">Theory</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- HERO -->
+    <div class="d-flex flex-column align-items-center mb-4">
+        <div class="mb-2">
+            <span class="chip chip-accent">Semester Project · Operating Systems Lab</span>
+        </div>
+        <h1 class="text-center mb-2 text-warning">
+            Page Replacement Algorithms
+        </h1>
+        <p class="text-center mb-3 subtitle text-secondary">
+            A modern, interactive visualization of FIFO, LRU and Optimal algorithms with step-by-step memory views,
+            live statistics and comparisons – built by <strong>Luvkesh</strong> &amp; <strong>Abhijeet</strong>.
+        </p>
+        <div class="d-flex flex-wrap gap-3 justify-content-center">
+            <a href="visualizer.html" class="btn-main">Start Simulation</a>
+            <a href="theory.html" class="btn-outline-soft">Read the Theory</a>
+        </div>
+    </div>
+
+    <!-- FEATURE CARDS -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="glass-card h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-secondary mb-1" style="letter-spacing:.14em;font-size:.75rem;">01 · Visual</h6>
+                    <h5 class="mb-2">Frame-by-Frame View</h5>
+                    <p class="text-secondary small mb-0">
+                        Watch how each page reference changes the frames. Hits and faults are colour-coded for
+                        instant understanding during explanation in class.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-card h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-secondary mb-1" style="letter-spacing:.14em;font-size:.75rem;">02 · Analytics</h6>
+                    <h5 class="mb-2">Live Comparison</h5>
+                    <p class="text-secondary small mb-0">
+                        Page faults, hits and fault rate are automatically calculated for FIFO, LRU and Optimal and
+                        summarized with a bar chart and a “best algorithm” highlight.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-card h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-secondary mb-1" style="letter-spacing:.14em;font-size:.75rem;">03 · Teaching</h6>
+                    <h5 class="mb-2">Step Sync Slider</h5>
+                    <p class="text-secondary small mb-0">
+                        A single slider highlights the same step across all three algorithms, making it very easy to
+                        demonstrate how each algorithm behaves differently for the same reference string.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="text-center text-secondary small mb-0">
+        Built for Operating Systems Lab · Use the navigation above to explore the visualizer and theory pages.
+    </footer>
+</div>
+</body>
+</html>
